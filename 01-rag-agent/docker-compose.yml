@@ -1,0 +1,21 @@
+# Hosts the Qdrant vector database. Bring it up with:
+#   docker compose up -d
+# Dashboard:  http://localhost:6333/dashboard
+#
+# The agent CLI runs on your host (via `uv run rag-agent ...`) and connects to
+# Qdrant at http://localhost:6333. Data persists in the named volume below.
+
+services:
+  qdrant:
+    # Pin a specific version in production; `latest` is used here for convenience.
+    image: qdrant/qdrant:latest
+    container_name: rag-qdrant
+    ports:
+      - "6333:6333" # REST API + web dashboard
+      - "6334:6334" # gRPC API
+    volumes:
+      - qdrant_data:/qdrant/storage
+    restart: unless-stopped
+
+volumes:
+  qdrant_data:
