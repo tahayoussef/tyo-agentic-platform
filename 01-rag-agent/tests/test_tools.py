@@ -56,6 +56,25 @@ def test_knowledge_base_tool_returns_attributed_chunks(tmp_path: Path) -> None:
     assert ("gobekli" in output) or ("carthage" in output)
 
 
+def test_knowledge_base_tool_filters_by_repo(tmp_path: Path) -> None:
+    (tmp_path / "carthage-architecture-center.md").write_text(
+        "# carthage\n" + "terraform modules. primary language python. " * 30, encoding="utf-8"
+    )
+    (tmp_path / "gobekli-tepe.md").write_text(
+        "# gobekli\n" + "dbt medallion platform. " * 30, encoding="utf-8"
+    )
+    settings = _settings(tmp_path)
+    embeddings = DeterministicFakeEmbedding(size=EMBED_DIM)
+    client = QdrantClient(location=":memory:")
+    run_ingest(settings, embeddings=embeddings, client=client, recreate=True)
+
+    tool = build_knowledge_base_tool(settings, embeddings=embeddings, client=client)
+    output = tool.invoke({"query": "language", "repo": "carthage-architecture-center", "top_k": 10})
+
+    assert "carthage-architecture-center" in output
+    assert "gobekli-tepe" not in output
+
+
 def test_knowledge_base_tool_metadata_is_well_formed(tmp_path: Path) -> None:
     (tmp_path / "one.md").write_text("# one\n" + "content here. " * 30, encoding="utf-8")
     settings = _settings(tmp_path)

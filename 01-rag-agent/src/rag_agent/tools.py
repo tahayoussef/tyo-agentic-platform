@@ -35,6 +35,14 @@ class SearchKnowledgeBaseInput(BaseModel):
     """Arguments for the ``search_knowledge_base`` tool."""
 
     query: str = Field(description="A natural-language description of what to look for.")
+    repo: str | None = Field(
+        default=None,
+        description=(
+            "Restrict the search to one repository by its exact name/slug "
+            "(e.g. 'carthage-architecture-center'). Set this whenever the question is about a "
+            "specific repository, so the search returns only that repo's documentation."
+        ),
+    )
     top_k: int | None = Field(
         default=None,
         description="How many chunks to return. Defaults to the configured value.",
@@ -60,8 +68,10 @@ def build_knowledge_base_tool(
 ) -> BaseTool:
     """Build the ``search_knowledge_base`` tool bound to a Qdrant collection."""
 
-    def search_knowledge_base(query: str, top_k: int | None = None) -> str:
-        results = kb_search(settings, query, embeddings=embeddings, client=client, top_k=top_k)
+    def search_knowledge_base(query: str, repo: str | None = None, top_k: int | None = None) -> str:
+        results = kb_search(
+            settings, query, embeddings=embeddings, client=client, top_k=top_k, repo=repo
+        )
         return _format_kb_results(results)
 
     return StructuredTool.from_function(
@@ -70,7 +80,9 @@ def build_knowledge_base_tool(
         description=(
             "Search a curated knowledge base of detailed repository documentation — "
             "architecture, design rationale, history, and context. It is rich but may be "
-            "out of date. Use it to answer what a project is, how it works, or why it exists."
+            "out of date. Use it to answer what a project is, how it works, or why it exists. "
+            "When the question targets a specific repository, pass its exact name as `repo` to "
+            "focus the search on that repository's docs."
         ),
         args_schema=SearchKnowledgeBaseInput,
     )

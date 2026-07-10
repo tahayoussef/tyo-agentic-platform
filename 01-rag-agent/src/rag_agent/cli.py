@@ -10,12 +10,15 @@ The callback keeps these as explicit sub-commands so more can be added cleanly.
 
 from __future__ import annotations
 
+from pathlib import Path
+
 import typer
 from pydantic import ValidationError
 
 from rag_agent.agent import RagAgent
 from rag_agent.config import Settings, get_settings
 from rag_agent.embeddings import build_embeddings
+from rag_agent.evaluation import EvalReport, evaluate, load_gold
 from rag_agent.ingest import run_ingest
 from rag_agent.logging import configure_logging, get_logger
 from rag_agent.retriever import search as run_search
@@ -121,6 +124,48 @@ def ask(
         typer.echo()
     else:
         typer.echo(agent.ask(question, callbacks=callbacks))
+
+
+_DEFAULT_GOLD_PATH = Path("eval/gold.yaml")
+_GOLD_PATH_OPTION = typer.Option(_DEFAULT_GOLD_PATH, help="Path to the gold question set (YAML).")
+
+
+def _print_report(report: EvalReport) -> None:
+    typer.secho(f"\nRetrieval eval — k={report.k}, {len(report.results)} cases\n", bold=True)
+    header = f"{'hit':>5} {'recall':>7} {'rr':>6} {'prec':>6}  query"
+    typer.echo(header)
+    typer.echo("-" * len(header))
+    for result in report.results:
+        m = result.metrics
+        query = result.case.query
+        if len(query) > 46:
+            query = query[:43] + "..."
+        typer.echo(
+            f"{m.hit:>5.2f} {m.recall:>7.2f} {m.reciprocal_rank:>6.2f} {m.precision:>6.2f}  {query}"
+        )
+    typer.echo("-" * len(header))
+    typer.secho(
+        f"{report.hit_rate:>5.2f} {report.recall:>7.2f} {report.mrr:>6.2f} "
+        f"{report.precision:>6.2f}  AGGREGATE",
+        fg=typer.colors.GREEN,
+        bold=True,
+    )
+
+
+@app.command("eval")
+def eval_command(
+    gold_path: Path = _GOLD_PATH_OPTION,
+    top_k: int = typer.Option(None, help="Chunks per query (defaults to TOP_K)."),
+) -> None:
+    """Evaluate retrieval quality against the gold set (hit rate, recall@k, MRR, precision)."""
+    settings = _load_settings()
+    configure_logging(level=settings.log_level, json_logs=settings.log_json)
+
+    embeddings = build_embeddings(settings)
+    client = build_qdrant_client(settings)
+    cases = load_gold(gold_path)
+    report = evaluate(settings, cases, embeddings=embeddings, client=client, top_k=top_k)
+    _print_report(report)
 
 
 if __name__ == "__main__":  # pragma: no cover

@@ -1,0 +1,49 @@
+# Retrieval evaluation gold set.
+#
+# Relevance is judged at the REPO level (stable across re-chunking). For each question,
+# `relevant_repos` lists the repositories whose docs should be retrieved.
+#
+# Leave `repo_filter` unset to measure RAW retrieval quality (this is what chunking / hybrid /
+# reranking improve). Set it to also exercise the metadata-filtered path.
+#
+# Deliberately mixed question shapes (exact name, fuzzy, multi-repo, KB-only) so a change that
+# only helps one shape shows up as a flat aggregate — that's the guard against overfitting.
+
+# --- single repo, name mentioned ---
+- query: "What language is carthage-architecture-center written in?"
+  relevant_repos: [carthage-architecture-center]
+
+- query: "Which project uses dbt with a bronze, silver, and gold medallion architecture?"
+  relevant_repos: [gobekli-tepe]
+
+- query: "How does the machu picchu platform enforce data quality and privacy compliance?"
+  relevant_repos: [machu-pichu]
+
+- query: "Where are the study notes for the Google Cloud Professional Cloud Architect exam?"
+  relevant_repos: [gcp-pca-prep]
+
+# --- fuzzy references (no exact repo name) ---
+- query: "the reference library of reusable Terraform modules for Google Cloud"
+  relevant_repos: [carthage-architecture-center]
+
+- query: "my cloud certification study documentation"
+  relevant_repos: [gcp-pca-prep]
+
+- query: "the batch analytics data platform built with Dagster and Delta Lake"
+  relevant_repos: [machu-pichu]
+
+# --- multi-repo ---
+- query: "which repositories are GCP data platforms with medallion or bronze/gold layers?"
+  relevant_repos: [gobekli-tepe, machu-pichu]
+
+- query: "which projects use Terraform or infrastructure-as-code?"
+  relevant_repos: [carthage-architecture-center, machu-pichu, gobekli-tepe]
+
+# --- knowledge-base-only fact (not derivable from GitHub metadata) ---
+- query: "which repositories are named after ancient archaeological sites?"
+  relevant_repos: [carthage-architecture-center, gobekli-tepe, machu-pichu]
+
+# --- filtered path: applies the repo pre-filter for this query ---
+- query: "what is the primary language and technology stack?"
+  relevant_repos: [carthage-architecture-center]
+  repo_filter: carthage-architecture-center

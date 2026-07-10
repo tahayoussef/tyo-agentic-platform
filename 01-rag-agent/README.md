@@ -9,9 +9,15 @@ of GitHub repositories by combining two sources of truth:
 The agent retrieves from the knowledge base *and* checks live data, then reconciles the two —
 surfacing conflicts where the static docs have gone stale.
 
-> **Status:** Phases 0–3 are implemented — infra, ingestion, the two tools, and the
-> reconciling agent (`ask`). Phase 4 (a recall@k eval set + embedding/retrieval tuning)
-> remains. See the blueprint for the full plan.
+> **Status:** Phases 0–4 are implemented — infra, ingestion, the two tools, the reconciling
+> agent (`ask`), **repository metadata filtering**, and a generic **eval harness** (`eval`).
+> What remains is *using* the harness to drive optimization experiments (chunking, hybrid,
+> reranking). See the blueprint for the full plan.
+>
+> **New to this?** Start with the concept series in
+> [`src/rag_agent/accompany_docs/`](src/rag_agent/accompany_docs/README.md) — a junior-friendly,
+> ordered tour of *what* we built and *why* (embeddings → chunking → the DB → ingestion →
+> retrieval → filtering → agentic RAG → evaluation).
 
 ## Why "agentic" RAG (do tools fit RAG?)
 
@@ -45,11 +51,13 @@ QUERY  (online):   question ─▶ agent ─┬─ search_knowledge_base (Qdrant
 | [`embeddings.py`](src/rag_agent/embeddings.py) | NVIDIA embeddings; asymmetric query/passage handling. |
 | [`vector_store.py`](src/rag_agent/vector_store.py) | Qdrant client, collection lifecycle, dimension probing. |
 | [`ingest.py`](src/rag_agent/ingest.py) | Load → chunk → embed → upsert. |
-| [`retriever.py`](src/rag_agent/retriever.py) | Embed query → nearest-chunk search. |
+| [`retriever.py`](src/rag_agent/retriever.py) | Embed query → nearest-chunk search, with optional repo pre-filter. |
 | [`github_client.py`](src/rag_agent/github_client.py) | Typed live GitHub REST client (ported from 00). |
 | [`tools.py`](src/rag_agent/tools.py) | `search_knowledge_base` (static) + `list_github_repositories` (live). |
 | [`agent.py`](src/rag_agent/agent.py) | ReAct agent + reconciliation prompt (`RagAgent` facade). |
-| [`cli.py`](src/rag_agent/cli.py) | `ingest`, `search`, and `ask` commands. |
+| [`tracing.py`](src/rag_agent/tracing.py) | Callback handler that prints tool calls/results (`--show-trace`). |
+| [`evaluation.py`](src/rag_agent/evaluation.py) | Generic retrieval eval: hit rate, recall@k, MRR, precision. |
+| [`cli.py`](src/rag_agent/cli.py) | `ingest`, `search`, `ask`, and `eval` commands. |
 
 ## Prerequisites
 
@@ -97,6 +105,34 @@ way to see whether the agent consulted both sources and what each returned:
 uv run rag-agent ask --show-trace "What language is carthage-architecture-center written in?"
 ```
 
+## Evaluate retrieval (measure before you optimize)
+
+The eval harness scores the **current** retriever against a fixed gold set
+([`eval/gold.yaml`](eval/gold.yaml)) — so when you later change chunking or add reranking, you
+re-run it and compare numbers instead of guessing.
+
+```bash
+uv run rag-agent ingest --recreate     # make sure the index reflects current settings
+uv run rag-agent eval
+```
+
+```
+Retrieval eval — k=4, 11 cases
+
+  hit  recall     rr   prec  query
+------------------------------------------------
+ 1.00    1.00   1.00   0.50  What language is carthage-architecture-cent...
+ ...
+------------------------------------------------
+ 0.82    0.71   0.68   0.39  AGGREGATE      ← the scorecard to move
+```
+
+Relevance is judged at the **repo level** (stable across re-chunking). Metrics: **hit rate**
+(found it at all?), **recall@k** (found *all* the relevant repos?), **MRR** (how high up?),
+**precision** (how little noise?). The gold set mixes question shapes (exact / fuzzy / multi /
+KB-only) on purpose — a change that only helps one shape shows up as a flat aggregate, which
+is the guard against fitting to a single demo question.
+
 ## Develop
 
 ```bash
@@ -107,10 +143,14 @@ uv run pytest          # runs fully offline (in-memory Qdrant + fake embeddings)
 
 ## Key learning levers (for the optimization phase)
 
+Each is a knob; the `eval` harness tells you which ones actually pay:
+
 - **Asymmetric embeddings** — passage vs. query `input_type` (handled in `embeddings.py`).
 - **Chunking** — `CHUNK_SIZE` / `CHUNK_OVERLAP`.
 - **Vector dimension & distance** — probed from the model; cosine metric.
-- Later: MMR, metadata filtering, hybrid (dense+sparse), reranking, and a recall@k eval set.
+- **Metadata filtering** — repo pre-filter (done). Next: entity resolution so it survives
+  fuzzy references, not just exact slugs.
+- **Still to try:** MMR (diversity), hybrid (dense + sparse) search, and reranking.
 
 ## Configuration
 

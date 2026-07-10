@@ -12,12 +12,15 @@ from __future__ import annotations
 from langchain_core.embeddings import Embeddings
 from langchain_qdrant import QdrantVectorStore
 from qdrant_client import QdrantClient
-from qdrant_client.models import Distance, VectorParams
+from qdrant_client.models import Distance, PayloadSchemaType, VectorParams
 
 from rag_agent.config import Settings
 from rag_agent.logging import get_logger
 
 logger = get_logger(__name__)
+
+# Payload fields we index so the retriever can pre-filter efficiently (e.g. by repository).
+_INDEXED_PAYLOAD_FIELDS = ("metadata.repo",)
 
 
 def build_qdrant_client(settings: Settings) -> QdrantClient:
@@ -59,6 +62,13 @@ def ensure_collection(
             collection_name=collection_name,
             vectors_config=VectorParams(size=dimension, distance=distance),
         )
+        # Index the payload fields we filter on, so pre-filtering is efficient.
+        for field in _INDEXED_PAYLOAD_FIELDS:
+            client.create_payload_index(
+                collection_name=collection_name,
+                field_name=field,
+                field_schema=PayloadSchemaType.KEYWORD,
+            )
 
 
 def build_vector_store(

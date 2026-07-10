@@ -20,7 +20,7 @@ from langchain_core.callbacks import BaseCallbackHandler
 class ToolTraceCallbackHandler(BaseCallbackHandler):
     """Print each tool invocation and its result to stderr."""
 
-    def __init__(self, *, max_chars: int = 1200) -> None:
+    def __init__(self, *, max_chars: int = 4000) -> None:
         self.max_chars = max_chars
 
     def on_tool_start(
