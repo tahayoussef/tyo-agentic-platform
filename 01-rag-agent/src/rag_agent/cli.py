@@ -1,11 +1,11 @@
 """Command-line entry point for the RAG agent.
 
-Phase 1 commands:
+Commands:
   - ``rag-agent ingest``   build/refresh the Qdrant index from the knowledge base
   - ``rag-agent search``   run a raw similarity search (inspect retrieval quality)
+  - ``rag-agent ask``      ask the agent, which fuses the knowledge base with live GitHub
 
-The ``ask`` command (the agent itself) arrives in a later phase; the callback below keeps
-these as explicit sub-commands so more can be added cleanly.
+The callback keeps these as explicit sub-commands so more can be added cleanly.
 """
 
 from __future__ import annotations
@@ -13,11 +13,13 @@ from __future__ import annotations
 import typer
 from pydantic import ValidationError
 
+from rag_agent.agent import RagAgent
 from rag_agent.config import Settings, get_settings
 from rag_agent.embeddings import build_embeddings
 from rag_agent.ingest import run_ingest
 from rag_agent.logging import configure_logging, get_logger
 from rag_agent.retriever import search as run_search
+from rag_agent.tracing import ToolTraceCallbackHandler
 from rag_agent.vector_store import build_qdrant_client
 
 app = typer.Typer(
@@ -91,6 +93,34 @@ def search(
         snippet = " ".join(doc.page_content.split())[:200]
         typer.secho(f"\n#{rank}  score={score:.4f}  repo={repo}", fg=typer.colors.CYAN)
         typer.echo(f"    {snippet}...")
+
+
+@app.command()
+def ask(
+    question: str = typer.Argument(..., help="The question to ask the agent."),
+    stream: bool = typer.Option(
+        default=True,
+        help="Stream the answer token-by-token (disable with --no-stream).",
+    ),
+    show_trace: bool = typer.Option(
+        default=False,
+        help="Print each tool call and its result to stderr (diagnose the ReAct loop).",
+    ),
+) -> None:
+    """Ask the agent: it fuses the knowledge base with live GitHub and reconciles them."""
+    settings = _load_settings()
+    configure_logging(level=settings.log_level, json_logs=settings.log_json)
+    get_logger(__name__).info("cli.ask", stream=stream, show_trace=show_trace)
+
+    agent = RagAgent(settings)
+    callbacks = [ToolTraceCallbackHandler()] if show_trace else None
+
+    if stream:
+        for token in agent.stream(question, callbacks=callbacks):
+            typer.echo(token, nl=False)
+        typer.echo()
+    else:
+        typer.echo(agent.ask(question, callbacks=callbacks))
 
 
 if __name__ == "__main__":  # pragma: no cover

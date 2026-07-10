@@ -9,8 +9,9 @@ of GitHub repositories by combining two sources of truth:
 The agent retrieves from the knowledge base *and* checks live data, then reconciles the two —
 surfacing conflicts where the static docs have gone stale.
 
-> **Status:** Phase 0 (infra) + Phase 1 (ingestion) are implemented. The retrieval tool and
-> the reconciling agent (`ask`) arrive in later phases. See the blueprint for the full plan.
+> **Status:** Phases 0–3 are implemented — infra, ingestion, the two tools, and the
+> reconciling agent (`ask`). Phase 4 (a recall@k eval set + embedding/retrieval tuning)
+> remains. See the blueprint for the full plan.
 
 ## Why "agentic" RAG (do tools fit RAG?)
 
@@ -34,7 +35,8 @@ The knowledge base is deliberately **different** from live GitHub, so reconcilia
 ```
 INGEST (offline):  github_repos_readmes/*.md ─▶ chunk ─▶ embed(passage) ─▶ Qdrant
 QUERY  (online):   question ─▶ agent ─┬─ search_knowledge_base (Qdrant, static)
-                                      └─ list_github_repositories (API, live)   [later phase]
+                                      └─ list_github_repositories (API, live)
+                              └─▶ reconcile the two ─▶ concise answer
 ```
 
 | Module | Responsibility |
@@ -44,7 +46,10 @@ QUERY  (online):   question ─▶ agent ─┬─ search_knowledge_base (Qdrant
 | [`vector_store.py`](src/rag_agent/vector_store.py) | Qdrant client, collection lifecycle, dimension probing. |
 | [`ingest.py`](src/rag_agent/ingest.py) | Load → chunk → embed → upsert. |
 | [`retriever.py`](src/rag_agent/retriever.py) | Embed query → nearest-chunk search. |
-| [`cli.py`](src/rag_agent/cli.py) | `ingest` and `search` commands. |
+| [`github_client.py`](src/rag_agent/github_client.py) | Typed live GitHub REST client (ported from 00). |
+| [`tools.py`](src/rag_agent/tools.py) | `search_knowledge_base` (static) + `list_github_repositories` (live). |
+| [`agent.py`](src/rag_agent/agent.py) | ReAct agent + reconciliation prompt (`RagAgent` facade). |
+| [`cli.py`](src/rag_agent/cli.py) | `ingest`, `search`, and `ask` commands. |
 
 ## Prerequisites
 
@@ -73,6 +78,23 @@ Open the Qdrant dashboard to *see* the points, vectors, and payloads you just cr
 ```bash
 uv run rag-agent search "which project uses dbt and a medallion architecture?"
 uv run rag-agent search "what language is carthage written in?"
+```
+
+## Ask the agent (fuses both sources)
+
+```bash
+uv run rag-agent ask "What is gobekli-tepe and how is it doing on GitHub right now?"
+uv run rag-agent ask "What language is carthage-architecture-center written in?"
+```
+
+The second question exercises the planted conflict: the knowledge base says **Python**, the
+live API says **HCL** — a good answer flags the discrepancy and prefers the live fact.
+
+Add `--show-trace` to print every tool call and its full result to **stderr** — the fastest
+way to see whether the agent consulted both sources and what each returned:
+
+```bash
+uv run rag-agent ask --show-trace "What language is carthage-architecture-center written in?"
 ```
 
 ## Develop

@@ -13,7 +13,9 @@ dependencies = [
     "langchain-nvidia-ai-endpoints>=0.3.0",
     "langchain-qdrant>=0.2.0",
     "langchain-text-splitters>=0.3.0",
+    "langgraph>=0.3.0",
     "qdrant-client>=1.12.0",
+    "httpx>=0.27.0",
     "pydantic>=2.9.0",
     "pydantic-settings>=2.5.0",
     "structlog>=24.4.0",
@@ -28,6 +30,7 @@ rag-agent = "rag_agent.cli:app"
 dev = [
     "pytest>=8.3.0",
     "pytest-cov>=6.0.0",
+    "respx>=0.21.1",
     "ruff>=0.7.0",
     "mypy>=1.13.0",
 ]
@@ -66,6 +69,7 @@ files = ["src", "tests"]
 module = [
     "langchain_nvidia_ai_endpoints.*",
     "langchain_qdrant.*",
+    "langgraph.*",
 ]
 ignore_missing_imports = true
 

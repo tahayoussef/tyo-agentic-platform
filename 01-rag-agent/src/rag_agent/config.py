@@ -34,6 +34,13 @@ class Settings(BaseSettings):
         description="How to handle over-long inputs: NONE | START | END.",
     )
 
+    # --- NVIDIA / chat model (the agent's reasoning LLM) ---
+    nvidia_chat_model: str = Field(default="z-ai/glm-5.2")
+    llm_temperature: float = Field(default=0.2, ge=0.0, le=2.0)
+    llm_top_p: float = Field(default=1.0, ge=0.0, le=1.0)
+    llm_max_tokens: int = Field(default=2048, gt=0)
+    llm_seed: int | None = Field(default=42)
+
     # --- Qdrant (vector DB) ---
     qdrant_url: str = Field(default="http://localhost:6333")
     qdrant_api_key: SecretStr | None = Field(
@@ -51,6 +58,16 @@ class Settings(BaseSettings):
 
     # --- Retrieval ---
     top_k: int = Field(default=4, ge=1, le=50, description="Chunks to return per search.")
+
+    # --- GitHub (live source) ---
+    github_username: str | None = Field(
+        default=None, description="Default GitHub account for the live tool."
+    )
+    github_token: SecretStr | None = Field(
+        default=None, description="Optional token to raise the GitHub rate limit."
+    )
+    github_api_base_url: str = Field(default="https://api.github.com")
+    request_timeout_seconds: float = Field(default=30.0, gt=0)
 
     # --- Observability ---
     log_level: str = Field(default="INFO")
