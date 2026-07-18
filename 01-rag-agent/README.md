@@ -10,9 +10,10 @@ The agent retrieves from the knowledge base *and* checks live data, then reconci
 surfacing conflicts where the static docs have gone stale.
 
 > **Status:** Phases 0–4 are implemented — infra, ingestion, the two tools, the reconciling
-> agent (`ask`), **repository metadata filtering**, and a generic **eval harness** (`eval`).
-> What remains is *using* the harness to drive optimization experiments (chunking, hybrid,
-> reranking). See the blueprint for the full plan.
+> agent (`ask`), **repository metadata filtering**, a generic **eval harness** (`eval`), and
+> both **hybrid search** and **reranking** (opt-in via config). These retrieval upgrades are
+> built for *learning the techniques*; on this tiny corpus the eval shows they aren't needed —
+> that's expected, and the point.
 >
 > **New to this?** Start with the concept series in
 > [`src/rag_agent/accompany_docs/`](src/rag_agent/accompany_docs/README.md) — a junior-friendly,
@@ -150,7 +151,11 @@ Each is a knob; the `eval` harness tells you which ones actually pay:
 - **Vector dimension & distance** — probed from the model; cosine metric.
 - **Metadata filtering** — repo pre-filter (done). Next: entity resolution so it survives
   fuzzy references, not just exact slugs.
-- **Still to try:** MMR (diversity), hybrid (dense + sparse) search, and reranking.
+- **Hybrid search** (done) — dense + BM25 sparse, fused with RRF. Enable with
+  `RETRIEVAL_MODE=hybrid` then `ingest --recreate`.
+- **Reranking** (done) — two-stage fetch→re-score with a cross-encoder. Enable with
+  `USE_RERANKER=true`.
+- **Still to try:** MMR (diversity), and entity resolution for the repo filter.
 
 ## Configuration
 

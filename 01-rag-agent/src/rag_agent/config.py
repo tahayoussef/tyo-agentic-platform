@@ -59,6 +59,29 @@ class Settings(BaseSettings):
     # --- Retrieval ---
     top_k: int = Field(default=4, ge=1, le=50, description="Chunks to return per search.")
 
+    # --- Hybrid search (dense embeddings + sparse keyword) ---
+    retrieval_mode: str = Field(default="dense", description="Retrieval mode: 'dense' or 'hybrid'.")
+    sparse_embedding_model: str = Field(
+        default="Qdrant/bm25",
+        description="FastEmbed sparse model used for the keyword half of hybrid search.",
+    )
+
+    # --- Reranking (two-stage retrieval) ---
+    use_reranker: bool = Field(
+        default=False, description="Re-rank fetched candidates with a cross-encoder."
+    )
+    reranker_model: str = Field(default="nvidia/llama-3.2-nv-rerankqa-1b-v2")
+    rerank_fetch_k: int = Field(
+        default=20,
+        ge=1,
+        le=200,
+        description="Candidates to fetch before the reranker narrows them to top_k.",
+    )
+
+    @property
+    def is_hybrid(self) -> bool:
+        return self.retrieval_mode.lower() == "hybrid"
+
     # --- GitHub (live source) ---
     github_username: str | None = Field(
         default=None, description="Default GitHub account for the live tool."

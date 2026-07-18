@@ -17,7 +17,7 @@ from langchain_nvidia_ai_endpoints import ChatNVIDIA
 from langgraph.prebuilt import create_react_agent
 
 from rag_agent.config import Settings
-from rag_agent.embeddings import build_embeddings
+from rag_agent.embeddings import build_embeddings, build_reranker, build_sparse_embeddings
 from rag_agent.logging import get_logger
 from rag_agent.tools import build_tools
 from rag_agent.vector_store import build_qdrant_client
@@ -55,9 +55,23 @@ def build_agent(settings: Settings) -> Any:
     """Compile a ReAct agent (LLM + KB tool + live GitHub tool) into an executable graph."""
     embeddings = build_embeddings(settings)
     qdrant_client = build_qdrant_client(settings)
-    tools = build_tools(settings, embeddings=embeddings, qdrant_client=qdrant_client)
+    sparse_embedding = build_sparse_embeddings(settings) if settings.is_hybrid else None
+    reranker = build_reranker(settings) if settings.use_reranker else None
+    tools = build_tools(
+        settings,
+        embeddings=embeddings,
+        qdrant_client=qdrant_client,
+        sparse_embedding=sparse_embedding,
+        reranker=reranker,
+    )
     llm = build_llm(settings)
-    logger.debug("agent.build", model=settings.nvidia_chat_model, tools=[t.name for t in tools])
+    logger.debug(
+        "agent.build",
+        model=settings.nvidia_chat_model,
+        retrieval_mode=settings.retrieval_mode,
+        reranker=settings.use_reranker,
+        tools=[t.name for t in tools],
+    )
     return create_react_agent(llm, tools, prompt=RECONCILIATION_SYSTEM_PROMPT)
 
 

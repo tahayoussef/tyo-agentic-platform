@@ -11,13 +11,14 @@ The callback keeps these as explicit sub-commands so more can be added cleanly.
 from __future__ import annotations
 
 from pathlib import Path
+from typing import Any
 
 import typer
 from pydantic import ValidationError
 
 from rag_agent.agent import RagAgent
 from rag_agent.config import Settings, get_settings
-from rag_agent.embeddings import build_embeddings
+from rag_agent.embeddings import build_embeddings, build_reranker, build_sparse_embeddings
 from rag_agent.evaluation import EvalReport, evaluate, load_gold
 from rag_agent.ingest import run_ingest
 from rag_agent.logging import configure_logging, get_logger
@@ -35,6 +36,13 @@ app = typer.Typer(
 @app.callback()
 def main() -> None:
     """RAG over a Qdrant knowledge base of GitHub repositories."""
+
+
+def _sparse_and_reranker(settings: Settings) -> tuple[Any, Any]:
+    """Build the optional retrieval upgrades that are enabled in settings."""
+    sparse = build_sparse_embeddings(settings) if settings.is_hybrid else None
+    reranker = build_reranker(settings) if settings.use_reranker else None
+    return sparse, reranker
 
 
 def _load_settings() -> Settings:
@@ -65,7 +73,10 @@ def ingest(
 
     embeddings = build_embeddings(settings)
     client = build_qdrant_client(settings)
-    report = run_ingest(settings, embeddings=embeddings, client=client, recreate=recreate)
+    sparse = build_sparse_embeddings(settings) if settings.is_hybrid else None
+    report = run_ingest(
+        settings, embeddings=embeddings, client=client, sparse_embedding=sparse, recreate=recreate
+    )
 
     typer.secho(
         f"Ingested {report.chunks} chunks from {report.files} files into "
@@ -85,7 +96,16 @@ def search(
 
     embeddings = build_embeddings(settings)
     client = build_qdrant_client(settings)
-    results = run_search(settings, query, embeddings=embeddings, client=client, top_k=top_k)
+    sparse, reranker = _sparse_and_reranker(settings)
+    results = run_search(
+        settings,
+        query,
+        embeddings=embeddings,
+        client=client,
+        top_k=top_k,
+        sparse_embedding=sparse,
+        reranker=reranker,
+    )
 
     if not results:
         typer.echo("No results. Have you run `rag-agent ingest`?")
@@ -163,8 +183,17 @@ def eval_command(
 
     embeddings = build_embeddings(settings)
     client = build_qdrant_client(settings)
+    sparse, reranker = _sparse_and_reranker(settings)
     cases = load_gold(gold_path)
-    report = evaluate(settings, cases, embeddings=embeddings, client=client, top_k=top_k)
+    report = evaluate(
+        settings,
+        cases,
+        embeddings=embeddings,
+        client=client,
+        sparse_embedding=sparse,
+        reranker=reranker,
+        top_k=top_k,
+    )
     _print_report(report)
 
 

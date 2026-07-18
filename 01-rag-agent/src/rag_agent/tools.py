@@ -19,11 +19,13 @@ from typing import Protocol, Self
 from langchain_core.documents import Document
 from langchain_core.embeddings import Embeddings
 from langchain_core.tools import BaseTool, StructuredTool
+from langchain_qdrant import SparseEmbeddings
 from pydantic import BaseModel, Field
 from qdrant_client import QdrantClient
 
 from rag_agent.config import Settings
 from rag_agent.github_client import GitHubClient, GitHubError, GitHubRepository
+from rag_agent.retriever import Reranker
 from rag_agent.retriever import search as kb_search
 
 # --------------------------------------------------------------------------- #
@@ -65,12 +67,24 @@ def build_knowledge_base_tool(
     *,
     embeddings: Embeddings,
     client: QdrantClient,
+    sparse_embedding: SparseEmbeddings | None = None,
+    reranker: Reranker | None = None,
 ) -> BaseTool:
-    """Build the ``search_knowledge_base`` tool bound to a Qdrant collection."""
+    """Build the ``search_knowledge_base`` tool bound to a Qdrant collection.
+
+    ``sparse_embedding`` (hybrid) and ``reranker`` (two-stage) are optional retrieval upgrades.
+    """
 
     def search_knowledge_base(query: str, repo: str | None = None, top_k: int | None = None) -> str:
         results = kb_search(
-            settings, query, embeddings=embeddings, client=client, top_k=top_k, repo=repo
+            settings,
+            query,
+            embeddings=embeddings,
+            client=client,
+            top_k=top_k,
+            repo=repo,
+            sparse_embedding=sparse_embedding,
+            reranker=reranker,
         )
         return _format_kb_results(results)
 
@@ -208,10 +222,18 @@ def build_tools(
     *,
     embeddings: Embeddings,
     qdrant_client: QdrantClient,
+    sparse_embedding: SparseEmbeddings | None = None,
+    reranker: Reranker | None = None,
     github_client_factory: ClientFactory | None = None,
 ) -> list[BaseTool]:
     """Build the full tool set the agent is given: static KB search + live GitHub."""
     return [
-        build_knowledge_base_tool(settings, embeddings=embeddings, client=qdrant_client),
+        build_knowledge_base_tool(
+            settings,
+            embeddings=embeddings,
+            client=qdrant_client,
+            sparse_embedding=sparse_embedding,
+            reranker=reranker,
+        ),
         *build_github_tools(settings, client_factory=github_client_factory),
     ]

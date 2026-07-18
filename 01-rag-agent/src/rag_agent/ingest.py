@@ -13,6 +13,7 @@ from pathlib import Path
 
 from langchain_core.documents import Document
 from langchain_core.embeddings import Embeddings
+from langchain_qdrant import SparseEmbeddings
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 from qdrant_client import QdrantClient
 
@@ -78,9 +79,13 @@ def run_ingest(
     *,
     embeddings: Embeddings,
     client: QdrantClient,
+    sparse_embedding: SparseEmbeddings | None = None,
     recreate: bool = False,
 ) -> IngestReport:
-    """Run the full ingestion pipeline and return a summary report."""
+    """Run the full ingestion pipeline and return a summary report.
+
+    Passing ``sparse_embedding`` indexes both dense and sparse vectors (hybrid search).
+    """
     documents = load_documents(settings.knowledge_base_dir)
     chunks = split_documents(
         documents,
@@ -89,9 +94,17 @@ def run_ingest(
     )
 
     dimension = probe_embedding_dimension(embeddings)
-    ensure_collection(client, settings.collection_name, dimension, recreate=recreate)
+    ensure_collection(
+        client,
+        settings.collection_name,
+        dimension,
+        hybrid=sparse_embedding is not None,
+        recreate=recreate,
+    )
 
-    store = build_vector_store(client, settings.collection_name, embeddings)
+    store = build_vector_store(
+        client, settings.collection_name, embeddings, sparse_embedding=sparse_embedding
+    )
     store.add_documents(chunks)
 
     logger.info(

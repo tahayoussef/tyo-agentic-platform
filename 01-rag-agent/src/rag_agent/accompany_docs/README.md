@@ -14,6 +14,8 @@ the syntax. Each file is one concept; read them in number order.
 | [06](06-metadata-filtering.md) | Metadata & filtering | Narrow the search *before* similarity — precision, not just closeness. |
 | [07](07-agentic-rag.md) | Agentic RAG | Let the agent *choose* to search, and reconcile the KB with live data. |
 | [08](08-evaluating-retrieval.md) | Evaluating retrieval | Measure quality with numbers so "better" isn't a guess. |
+| [09](09-reranking.md) | Reranking | Fetch many, then re-score with a smarter cross-encoder. |
+| [10](10-hybrid-search.md) | Hybrid search | Combine semantic meaning with exact keyword matching. |
 
 The code these describe lives one directory up (`../embeddings.py`, `../ingest.py`,
 `../retriever.py`, `../vector_store.py`, `../tools.py`).

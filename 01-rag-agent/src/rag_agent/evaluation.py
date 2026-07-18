@@ -19,10 +19,11 @@ from statistics import mean
 
 import yaml
 from langchain_core.embeddings import Embeddings
+from langchain_qdrant import SparseEmbeddings
 from qdrant_client import QdrantClient
 
 from rag_agent.config import Settings
-from rag_agent.retriever import search
+from rag_agent.retriever import Reranker, search
 
 
 @dataclass(frozen=True)
@@ -129,9 +130,11 @@ def evaluate(
     *,
     embeddings: Embeddings,
     client: QdrantClient,
+    sparse_embedding: SparseEmbeddings | None = None,
+    reranker: Reranker | None = None,
     top_k: int | None = None,
 ) -> EvalReport:
-    """Run every case through the current retriever and score it."""
+    """Run every case through the current retriever (incl. hybrid/rerank) and score it."""
     k = top_k or settings.top_k
     results: list[CaseResult] = []
     for case in cases:
@@ -142,6 +145,8 @@ def evaluate(
             client=client,
             top_k=k,
             repo=case.repo_filter,
+            sparse_embedding=sparse_embedding,
+            reranker=reranker,
         )
         retrieved_repos = tuple(str(doc.metadata.get("repo", "")) for doc, _ in pairs)
         metrics = compute_metrics(retrieved_repos, case.relevant_repos, k)
