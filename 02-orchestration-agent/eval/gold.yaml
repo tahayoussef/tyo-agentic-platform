@@ -1,0 +1,51 @@
+# Orchestration evaluation gold set.
+#
+# `routes` — acceptable destinations for the ROUTER (usually one; cross-source questions
+#            list several because any single choice is defensible — and incomplete).
+# `needs`  — specialists the SUPERVISOR must consult. Defaults to `routes` minus `general`.
+#
+# Deliberately mixed shapes (clearly-live, clearly-docs, small talk, cross-source) so a
+# prompt tweak that only helps one shape shows up as a flat aggregate.
+
+# --- clearly live GitHub ---
+- question: "How many stars does gobekli-tepe have right now?"
+  routes: [github]
+
+- question: "Which of my repositories was pushed to most recently?"
+  routes: [github]
+
+- question: "List my public repos with their primary language and fork counts."
+  routes: [github]
+
+# --- clearly documentation ---
+- question: "According to the project docs, why does carthage-architecture-center exist?"
+  routes: [docs]
+
+- question: "What does the documentation say about machu-pichu's approach to data quality?"
+  routes: [docs]
+
+- question: "What do my GCP architect exam study notes cover?"
+  routes: [docs]
+
+# --- clearly general ---
+- question: "Hello! What can you help me with?"
+  routes: [general]
+
+- question: "Write a haiku about vector databases."
+  routes: [general]
+
+# --- cross-source probes: no single route can fully answer these ---
+- question: >-
+    What language do the docs say carthage-architecture-center is written in, and what
+    does live GitHub report today?
+  routes: [github, docs]
+  needs: [github, docs]
+
+- question: "Is the documentation for gobekli-tepe still accurate about its tech stack?"
+  routes: [github, docs]
+  needs: [github, docs]
+
+- question: >-
+    Summarize what each of my repositories is for, and how popular each one is right now.
+  routes: [github, docs]
+  needs: [github, docs]

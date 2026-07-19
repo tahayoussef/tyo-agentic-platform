@@ -12,9 +12,7 @@ models, unit tests, linting, static typing, and reproducible Docker builds.
 | Step | Project | What it teaches |
 | ---- | ------- | --------------- |
 | `00` | [`00-basic-agent`](./00-basic-agent) | A single tool-calling agent that answers questions about a user's **public GitHub repositories**. Establishes the project template: `uv`, Pydantic settings, structured logging, tests, and a hardened Dockerfile. |
-| `01` | [`01-rag-agent`](./01-rag-agent) | **Agentic RAG**: a Qdrant knowledge base + the live GitHub API, reconciled by the agent. Embeddings, chunking, metadata filtering, hybrid search, reranking — and a retrieval eval harness to measure it all. |
-| `02` | [`02-orchestration-agent`](./02-orchestration-agent) | **Orchestration**: one team of specialist agents, two styles over it — a **router** (structured-output classification, one hop) vs a **supervisor** (agents-as-tools, multi-source synthesis) — with routing-accuracy and delegation-coverage evals. |
-| …    | _(coming)_ | Memory, handoff-style multi-agent patterns, answer-quality (LLM-as-judge) evaluation. |
+| …    | _(coming)_ | Memory, retrieval, multi-tool routing, multi-agent orchestration. |
 
 ## Conventions
 

@@ -16,6 +16,7 @@ the syntax. Each file is one concept; read them in number order.
 | [08](08-evaluating-retrieval.md) | Evaluating retrieval | Measure quality with numbers so "better" isn't a guess. |
 | [09](09-reranking.md) | Reranking | Fetch many, then re-score with a smarter cross-encoder. |
 | [10](10-hybrid-search.md) | Hybrid search | Combine semantic meaning with exact keyword matching. |
+| [11](11-production-readiness.md) | Production readiness | Capstone: the gap between good code and a shippable system. |
 
 The code these describe lives one directory up (`../embeddings.py`, `../ingest.py`,
 `../retriever.py`, `../vector_store.py`, `../tools.py`).
